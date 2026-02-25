@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-search.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <style>
+            html, body, #map {
+                width: 100%;
+                height: 100%;
+                padding: 0;
+                margin: 0;
+                background: #f0f0f0;
+            }
+            
+            #header-box {
+                position: absolute;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 1000;
+                background: rgba(255, 255, 255, 0.85);
+                backdrop-filter: blur(10px);
+                padding: 12px 30px;
+                border-radius: 50px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                white-space: nowrap;
+            }
+
+            #header-box img {
+                height: 55px; 
+                width: auto;
+            }
+
+            #map-title {
+                font-family: 'Montserrat', sans-serif;
+                font-weight: 800;
+                font-size: 22px;
+                background: linear-gradient(45deg, #2c3e50, #2980b9);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin: 0;
+                text-transform: uppercase;
+            }
+
+            /* Gaya butang navigasi dalam popup */
+            .nav-btn {
+                display: inline-block;
+                margin-top: 10px;
+                padding: 8px 15px;
+                background-color: #3498db;
+                color: white !important;
+                text-decoration: none;
+                border-radius: 5px;
+                font-weight: bold;
+                font-size: 12px;
+                text-align: center;
+            }
+            .nav-btn:hover { background-color: #2980b9; }
+
+            .leaflet-control-layers { border-radius: 12px !important; }
+        </style>
+        <title>Sistem Geo-Lot Politeknik</title>
+    </head>
+    <body>
+
+        <div id="header-box">
+            <img src="LOGO POLITEKNIK.png" alt="Logo Politeknik">
+            <div id="map-title">Sistem Maklumat Geo-Lot & Sempadan</div>
+        </div>
+
+        <div id="map"></div>
+
+        <script src="js/leaflet.js"></script>
+        <script src="js/leaflet-search.js"></script>
+        <script src="data/lot_final_0.js"></script>
+        <script src="data/tandasempadan_merge_1.js"></script>
+
+        <script>
+            var map = L.map('map', {
+                zoomControl: true,
+                maxZoom: 28, 
+                minZoom: 1
+            }).fitBounds([[2.1033042573717844,102.52022430753668],[2.1046587273079154,102.52260985814908]]);
+
+            // --- PILIHAN MAP ASAS (BASEMAPS) ---
+            var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+                subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Google Satellite'
+            });
+
+            var googleTerrain = L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',{
+                subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Google Terrain'
+            });
+
+            var esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Esri World Imagery'
+            });
+
+            // --- PILIHAN LAPISAN TRAFIK/TRANSIT (OVERLAYS) ---
+            var googleTraffic = L.tileLayer('https://{s}.google.com/vt/lyrs=h,traffic&x={x}&y={y}&z={z}', {
+                subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Google Traffic', opacity: 0.7
+            });
+
+            var googleTransit = L.tileLayer('https://{s}.google.com/vt/lyrs=h,transit&x={x}&y={y}&z={z}', {
+                subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Google Transit'
+            });
+
+            var googleBiking = L.tileLayer('https://{s}.google.com/vt/lyrs=h,bike&x={x}&y={y}&z={z}', {
+                subdomains:['mt0','mt1','mt2','mt3'], attribution: 'Google Biking'
+            });
+
+            // Set default map
+            googleSat.addTo(map);
+
+            // Layer Lot Tanah dengan Navigation
+            var layer_lot_final_0 = new L.geoJson(json_lot_final_0, {
+                style: { color: '#ffff00', weight: 2.5, fillOpacity: 0.15 },
+                onEachFeature: function(feature, layer) {
+                    var center = layer.getBounds().getCenter();
+                    var googleNavUrl = "https://www.google.com/maps/dir/?api=1&destination=" + center.lat + "," + center.lng;
+                    
+                    var popupContent = '<div style="font-family: Arial; min-width: 150px;">' +
+                                     '<b>NO. LOT: </b>' + (feature.properties['NO_LOT'] || 'N/A') + '<br>' +
+                                     '<b>AREA: </b>' + (feature.properties['AREA'] || 'N/A') + ' m²<br>' +
+                                     '<a href="' + googleNavUrl + '" target="_blank" class="nav-btn"><i class="fas fa-route"></i> Navigasi ke Lot</a>' +
+                                     '</div>';
+                    layer.bindPopup(popupContent);
+                }
+            }).addTo(map);
+
+            // Layer Sempadan
+            var layer_tandasempadan_merge_1 = new L.geoJson(json_tandasempadan_merge_1, {
+                pointToLayer: function (feature, latlng) {
+                    return L.circleMarker(latlng, { radius: 6, color: '#ffffff', weight: 2, fillColor: '#e74c3c', fillOpacity: 1 });
+                }
+            }).addTo(map);
+
+            // --- KAWALAN LAYERS (KEMAS KINI) ---
+            var baseMaps = {
+                "Satelit (Pure)": googleSat,
+                "Terrain / Topo": googleTerrain,
+                "ESRI Imagery": esriSat
+            };
+            
+            var overlayMaps = {
+                "<b>Maklumat Lot Tanah</b>": layer_lot_final_0,
+                "<b>Tanda Sempadan</b>": layer_tandasempadan_merge_1,
+                "Lalu Lintas (Traffic)": googleTraffic,
+                "Pengangkutan (Transit)": googleTransit,
+                "Laluan Basikal (Biking)": googleBiking
+            };
+
+            L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
+
+            // Search Control
+            var searchControl = new L.Control.Search({
+                layer: layer_lot_final_0,
+                propertyName: 'NO_LOT',
+                textPlaceholder: 'Cari No. Lot...',
+                moveToLocation: function(latlng, title, map) { map.setView(latlng, 19); }
+            });
+            map.addControl(searchControl);
+
+        </script>
+    </body>
+</html>
