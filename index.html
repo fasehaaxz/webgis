@@ -36,10 +36,14 @@
             .info-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; border-bottom: 1px dotted #bdc3c7; }
             .info-label { font-weight: bold; }
             
-            .action-btn { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; }
+            .action-btn { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; }
             .btn-gps { background: #3498db; color: white; }
             .btn-pdf-smart { background: #27ae60; color: white; }
             .btn-reset { background: #e67e22; color: white; font-size: 12px; }
+            
+            /* Warna butang baru untuk Titik Sempadan */
+            .btn-toggle-points { background: #e74c3c; color: white; }
+            .btn-toggle-points:hover { background: #c0392b; }
 
             #header-box { position: absolute; top: 15px; left: 85px; z-index: 1000; background: rgba(255, 255, 255, 0.9); padding: 8px 20px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; backdrop-filter: blur(5px); }
             #header-box img { height: 28px; width: auto; }
@@ -47,32 +51,28 @@
             /* Kotak Maklumat PDF */
             #print-header {
                 display: none;
+                position: relative;
                 background: white; color: black; padding: 10px;
-                border: 2px solid #333; margin-bottom: 10px; border-radius: 5px;
+                border: 2px solid #333; margin-bottom: 5px; border-radius: 5px;
             }
             #print-header h2 { margin: 0; font-size: 18px; text-align: center; border-bottom: 2px solid #333; padding-bottom: 5px; text-transform: uppercase; }
             #print-header table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-            #print-header td { padding: 4px; font-size: 12px; border-bottom: 1px solid #eee; }
+            #print-header td { padding: 4px; font-size: 12px; border: 1px solid #ccc; }
 
-            /* =========================================
-               MEDIA PRINT - FIX UNTUK 1 PAGE A4
-               ========================================= */
+            /* Media Print - PELARASAN UTAMA */
             @media print {
                 @page { 
                     size: A4 landscape; 
-                    margin: 0.5cm; /* Memberi sedikit ruang tepi supaya tidak terpotong oleh printer */
+                    margin: 0.5cm; 
                 }
+                #sidebar, #header-box, #menu-btn, .leaflet-control-container, .leaflet-popup { display: none !important; }
                 
-                /* Sembunyikan semua elemen UI */
-                #sidebar, #header-box, #menu-btn, .leaflet-control-container, .leaflet-popup { 
-                    display: none !important; 
-                }
-
                 body { 
                     background: white; 
-                    overflow: hidden !important; /* Elakkan page kedua */
-                    width: 100%;
-                    height: 100%;
+                    overflow: visible; 
+                    display: flex;
+                    flex-direction: column;
+                    height: 100vh;
                 }
 
                 #print-header { 
@@ -82,19 +82,17 @@
                 }
                 
                 #map { 
-                    display: block !important;
-                    position: relative !important; 
+                    flex-grow: 1;
                     width: 100% !important; 
-                    /* Tinggi dilaraskan supaya muat dalam 1 page selepas campur header */
                     height: 15.5cm !important; 
                     border: 2px solid #000 !important;
+                    display: block !important;
                     visibility: visible !important;
-                    margin: 0 !important;
+                    position: relative !important;
                 }
 
-                /* Jika cetakan penuh (tanpa jadual maklumat) */
                 body.print-all #map {
-                    height: 18.5cm !important;
+                    height: 18cm !important; 
                 }
             }
         </style>
@@ -102,18 +100,18 @@
     <body>
 
         <div id="print-header">
-            <h2 id="print-title">PELAN LOKASI - TAMAN SAUJANA PUTRA</h2>
+            <h2 id="print-title">MAKLUMAT LOT TANAH - TAMAN SAUJANA PUTRA</h2>
             <table id="print-table">
                 <tr>
-                    <td width="15%"><strong>Pemilik:</strong></td>
-                    <td id="p-owner" width="35%">-</td>
                     <td width="15%"><strong>No. Lot:</strong></td>
                     <td id="p-lot" width="35%">-</td>
+                    <td width="15%"><strong>Pemilik:</strong></td>
+                    <td id="p-owner" width="35%">-</td>
                 </tr>
                 <tr>
                     <td><strong>Keluasan:</strong></td>
                     <td id="p-area">-</td>
-                    <td><strong>Tarikh:</strong></td>
+                    <td><strong>Tarikh Cetakan:</strong></td>
                     <td><span id="p-date"></span></td>
                 </tr>
             </table>
@@ -143,6 +141,9 @@
             <div class="panel-section">
                 <h3><i class="fas fa-tools"></i> Alatan</h3>
                 <button class="action-btn btn-gps" onclick="findMe()"><i class="fas fa-location-arrow"></i> LOKASI SAYA</button>
+                
+                <button class="action-btn btn-toggle-points" onclick="togglePointsLayer()"><i class="fas fa-map-marker-alt"></i> ON/OFF TITIK SEMPADAN</button>
+                
                 <button class="action-btn btn-pdf-smart" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> EXPORT PDF</button>
             </div>
         </div>
@@ -159,29 +160,17 @@
 
         <script src="js/leaflet.js"></script>
         <script src="data/lot_final_0.js"></script>
+        <script src="data/tandasempadan_merge_1.js"></script>
 
         <script>
             var map = L.map('map', { zoomControl: false, maxZoom: 22 }).setView([2.104, 102.521], 17);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-            // Layer Google Satellite
             var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
-                maxZoom: 22, subdomains:['mt0','mt1','mt2','mt3'],
-                attribution: 'Google Satellite'
+                maxZoom: 22, subdomains:['mt0','mt1','mt2','mt3']
             }).addTo(map);
 
-            // Layer Google Street
-            var googleStreets = L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{
-                maxZoom: 22, subdomains:['mt0','mt1','mt2','mt3'],
-                attribution: 'Google Street'
-            });
-
-            var baseMaps = {
-                "Satelit": googleSat,
-                "Street (Jalan)": googleStreets
-            };
-            L.control.layers(baseMaps, null, {position: 'topright'}).addTo(map);
-
+            // 1. LAYER POLYGON (LOT)
             var selectedLayer = null;
             var defaultStyle = { color: '#333', weight: 1, fillColor: '#e5b636', fillOpacity: 0.5 };
             var highlightStyle = { color: '#ffffff', weight: 4, fillColor: '#f1c40f', fillOpacity: 0.8 };
@@ -195,6 +184,33 @@
                     });
                 }
             }).addTo(map);
+
+            // 2. LAYER POINT (TANDA SEMPADAN)
+            var layer_points = L.geoJson(json_tandasempadan_merge_1, {
+                pointToLayer: function (feature, latlng) {
+                    return L.circleMarker(latlng, {
+                        radius: 5,
+                        fillColor: "#ff0000", // Merah
+                        color: "#fff",
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 1
+                    });
+                },
+                onEachFeature: function (feature, layer) {
+                    layer.bindPopup("<b>B:</b> " + feature.properties.B + "<br><b>U:</b> " + feature.properties.U);
+                }
+            });
+            // Secara default kita biarkan OFF (tidak terus addTo(map))
+
+            // FUNGSI ON/OFF POINT
+            function togglePointsLayer() {
+                if (map.hasLayer(layer_points)) {
+                    map.removeLayer(layer_points);
+                } else {
+                    map.addLayer(layer_points);
+                }
+            }
 
             function highlightFeature(layer) {
                 if (selectedLayer) { layer_lot_final_0.resetStyle(selectedLayer); }
@@ -240,12 +256,9 @@
                 document.getElementById('p-date').innerText = dateStr;
                 var lotVal = document.getElementById('val-lot').innerText;
 
-                // Tutup sidebar sebelum print
-                document.getElementById('sidebar').classList.remove('active');
-
                 if (lotVal !== "-") {
                     document.body.classList.remove('print-all');
-                    document.getElementById('print-title').innerText = "PELAN LOKASI LOT - TAMAN SAUJANA PUTRA";
+                    document.getElementById('print-title').innerText = "MAKLUMAT LOT TANAH - TAMAN SAUJANA PUTRA";
                     document.getElementById('print-table').style.display = "table";
                     document.getElementById('p-owner').innerText = document.getElementById('val-owner').innerText;
                     document.getElementById('p-lot').innerText = lotVal;
@@ -256,11 +269,12 @@
                     document.getElementById('print-table').style.display = "none";
                 }
 
-                // Memberi masa untuk render dan panggil dialog print
+                if (document.getElementById('sidebar').classList.contains('active')) toggleSidebar();
+
                 setTimeout(function(){ 
                     map.invalidateSize();
                     window.print(); 
-                }, 800);
+                }, 500);
             }
 
             function findMe() {
