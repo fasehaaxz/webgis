@@ -41,9 +41,8 @@
             .btn-pdf-smart { background: #27ae60; color: white; }
             .btn-reset { background: #e67e22; color: white; font-size: 12px; }
             
-            /* Warna butang baru untuk Titik Sempadan */
             .btn-toggle-points { background: #e74c3c; color: white; }
-            .btn-toggle-points:hover { background: #c0392b; }
+            .btn-toggle-lot { background: #f1c40f; color: #2c3e50; }
 
             #header-box { position: absolute; top: 15px; left: 85px; z-index: 1000; background: rgba(255, 255, 255, 0.9); padding: 8px 20px; border-radius: 50px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; backdrop-filter: blur(5px); }
             #header-box img { height: 28px; width: auto; }
@@ -59,41 +58,22 @@
             #print-header table { width: 100%; border-collapse: collapse; margin-top: 5px; }
             #print-header td { padding: 4px; font-size: 12px; border: 1px solid #ccc; }
 
-            /* Media Print - PELARASAN UTAMA */
+            /* North Arrow Print */
+            #north-arrow-print {
+                display: none;
+                width: 50px;
+                margin-top: 10px;
+            }
+
+            #print-footer { display: none; text-align: right; font-size: 10px; margin-top: 5px; font-style: italic; }
+
             @media print {
-                @page { 
-                    size: A4 landscape; 
-                    margin: 0.5cm; 
-                }
-                #sidebar, #header-box, #menu-btn, .leaflet-control-container, .leaflet-popup { display: none !important; }
-                
-                body { 
-                    background: white; 
-                    overflow: visible; 
-                    display: flex;
-                    flex-direction: column;
-                    height: 100vh;
-                }
-
-                #print-header { 
-                    display: block !important; 
-                    width: 100%; 
-                    box-sizing: border-box; 
-                }
-                
-                #map { 
-                    flex-grow: 1;
-                    width: 100% !important; 
-                    height: 15.5cm !important; 
-                    border: 2px solid #000 !important;
-                    display: block !important;
-                    visibility: visible !important;
-                    position: relative !important;
-                }
-
-                body.print-all #map {
-                    height: 18cm !important; 
-                }
+                @page { size: A4 landscape; margin: 0.5cm; }
+                #sidebar, #header-box, #menu-btn, .leaflet-control-container, .leaflet-popup, #north-arrow { display: none !important; }
+                body { background: white; overflow: visible; display: flex; flex-direction: column; height: 100vh; }
+                #print-header, #north-arrow-print, #print-footer { display: block !important; }
+                #map { flex-grow: 1; width: 100% !important; height: 13cm !important; border: 2px solid #000 !important; position: relative !important; }
+                body.print-all #map { height: 16cm !important; }
             }
         </style>
     </head>
@@ -115,6 +95,7 @@
                     <td><span id="p-date"></span></td>
                 </tr>
             </table>
+            <img id="north-arrow-print" src="simbol utara.jpg" alt="North Arrow">
         </div>
 
         <button id="menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
@@ -141,9 +122,8 @@
             <div class="panel-section">
                 <h3><i class="fas fa-tools"></i> Alatan</h3>
                 <button class="action-btn btn-gps" onclick="findMe()"><i class="fas fa-location-arrow"></i> LOKASI SAYA</button>
-                
-                <button class="action-btn btn-toggle-points" onclick="togglePointsLayer()"><i class="fas fa-map-marker-alt"></i> ON/OFF TITIK SEMPADAN</button>
-                
+                <button class="action-btn btn-toggle-lot" onclick="toggleLotLayer()"><i class="fas fa-draw-polygon"></i> ON/OFF LOT POLIGON</button>
+                <button class="action-btn btn-toggle-points" onclick="togglePointsLayer()"><i class="fas fa-map-marker-alt"></i> ON/OFF TANDA SEMPADAN</button>
                 <button class="action-btn btn-pdf-smart" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> EXPORT PDF</button>
             </div>
         </div>
@@ -158,6 +138,10 @@
 
         <div id="map"></div>
 
+        <div id="print-footer">
+            Disediakan oleh: NUR FASEHA BINTI AXZAMAN
+        </div>
+
         <script src="js/leaflet.js"></script>
         <script src="data/lot_final_0.js"></script>
         <script src="data/tandasempadan_merge_1.js"></script>
@@ -170,7 +154,6 @@
                 maxZoom: 22, subdomains:['mt0','mt1','mt2','mt3']
             }).addTo(map);
 
-            // 1. LAYER POLYGON (LOT)
             var selectedLayer = null;
             var defaultStyle = { color: '#333', weight: 1, fillColor: '#e5b636', fillOpacity: 0.5 };
             var highlightStyle = { color: '#ffffff', weight: 4, fillColor: '#f1c40f', fillOpacity: 0.8 };
@@ -185,31 +168,25 @@
                 }
             }).addTo(map);
 
-            // 2. LAYER POINT (TANDA SEMPADAN)
             var layer_points = L.geoJson(json_tandasempadan_merge_1, {
                 pointToLayer: function (feature, latlng) {
                     return L.circleMarker(latlng, {
-                        radius: 5,
-                        fillColor: "#ff0000", // Merah
-                        color: "#fff",
-                        weight: 2,
-                        opacity: 1,
-                        fillOpacity: 1
+                        radius: 5, fillColor: "#ff0000", color: "#fff", weight: 2, opacity: 1, fillOpacity: 1
                     });
                 },
                 onEachFeature: function (feature, layer) {
                     layer.bindPopup("<b>B:</b> " + feature.properties.B + "<br><b>U:</b> " + feature.properties.U);
                 }
             });
-            // Secara default kita biarkan OFF (tidak terus addTo(map))
 
-            // FUNGSI ON/OFF POINT
+            function toggleLotLayer() {
+                if (map.hasLayer(layer_lot_final_0)) { map.removeLayer(layer_lot_final_0); } 
+                else { map.addLayer(layer_lot_final_0); }
+            }
+
             function togglePointsLayer() {
-                if (map.hasLayer(layer_points)) {
-                    map.removeLayer(layer_points);
-                } else {
-                    map.addLayer(layer_points);
-                }
+                if (map.hasLayer(layer_points)) { map.removeLayer(layer_points); } 
+                else { map.addLayer(layer_points); }
             }
 
             function highlightFeature(layer) {
@@ -218,18 +195,32 @@
                 layer.setStyle(highlightStyle);
                 
                 var props = layer.feature.properties;
-                document.getElementById('val-lot').innerText = props['NO_LOT'] || 'N/A';
-                document.getElementById('val-owner').innerText = props['tsp — pe'] || 'N/A';
-                document.getElementById('val-area').innerText = (props['AREA'] || '0') + ' m²';
                 
-                layer.bindPopup('<b>Lot: ' + props['NO_LOT'] + '</b>').openPopup();
+                var noLot = props['NO_LOT'] || 'N/A';
+                var namaPemilik = props['tsp — pe'] || 'N/A';
+                var keluasan = (props['AREA'] || '0') + ' m²';
+
+                // Kemaskini Sidebar
+                document.getElementById('val-lot').innerText = noLot;
+                document.getElementById('val-owner').innerText = namaPemilik;
+                document.getElementById('val-area').innerText = keluasan;
+                
+                // Popup pada peta (Hanya No Lot dan Nama Pemilik)
+                var popupContent = `
+                    <div style="font-family: 'Segoe UI', sans-serif; min-width: 140px;">
+                        <div style="background: #2c3e50; color: white; padding: 5px 10px; font-weight: bold; text-align: center; border-radius: 4px; margin-bottom: 5px;">INFO LOT</div>
+                        <div style="font-size: 13px; line-height: 1.5;">
+                            <b>No. Lot:</b> ${noLot}<br>
+                            <b>Pemilik:</b> ${namaPemilik}
+                        </div>
+                    </div>
+                `;
+                
+                layer.bindPopup(popupContent, { offset: L.point(0, -5) }).openPopup();
             }
 
             function resetSelection() {
-                if (selectedLayer) {
-                    layer_lot_final_0.resetStyle(selectedLayer);
-                    selectedLayer = null;
-                }
+                if (selectedLayer) { layer_lot_final_0.resetStyle(selectedLayer); selectedLayer = null; }
                 document.getElementById('val-lot').innerText = "-";
                 document.getElementById('val-owner').innerText = "-";
                 document.getElementById('val-area').innerText = "-";
